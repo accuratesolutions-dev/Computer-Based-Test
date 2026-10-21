@@ -1,0 +1,4 @@
+# Internal PHP libraries must never be requested directly.
+<FilesMatch "^(config|functions|session|admin_session|grading|csv_import|student_import|admin_layout|add_question|fetchUserData|header|footer)\.php$">
+    Require all denied
+</FilesMatch>

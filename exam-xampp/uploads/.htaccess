@@ -1,0 +1,5 @@
+# User uploads: never execute scripts from here.
+<FilesMatch "\.(php|phtml|phar|php[0-9])$">
+    Require all denied
+</FilesMatch>
+Options -ExecCGI -Indexes

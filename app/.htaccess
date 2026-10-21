@@ -1,0 +1,13 @@
+Options -Indexes
+ServerSignature Off
+
+# Never serve dotfiles, SQL dumps, logs, docs, backups
+<FilesMatch "(^\.|\.(sql|log|ini|sh|bak|dist|md|yml|yaml|lock)$)">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

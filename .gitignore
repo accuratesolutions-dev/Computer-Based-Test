@@ -1,0 +1,7 @@
+.env
+app/onlineForm/images/Student_Images/*
+!app/onlineForm/images/Student_Images/.gitkeep
+!app/onlineForm/images/Student_Images/.htaccess
+app/uploads/*
+!app/uploads/.gitkeep
+!app/uploads/.htaccess

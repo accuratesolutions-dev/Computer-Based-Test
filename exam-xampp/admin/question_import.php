@@ -18,10 +18,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $classId = (int) ($_POST['classGroup'] ?? 0);
     $subjectId = (int) ($_POST['classSubject'] ?? 0);
+    $levelIn = (string) ($_POST['level'] ?? '');
+    $validLevels = $classId ? levels_for_class($classId) : [];
+    $level = $levelIn === 'all' ? '' : (in_array($levelIn, $validLevels, true) ? $levelIn : null);
     $file = $_FILES['csv'] ?? null;
 
     if (!db_one("SELECT sub_id FROM subject WHERE sub_id = ? AND class_id = ?", 'ii', $subjectId, $classId)) {
         $errors[] = 'Please choose a class and a subject.';
+    } elseif ($level === null) {
+        $errors[] = 'Please choose the level (JSS 1-3 / SSS 1-3) or "All levels" for these questions.';
     } elseif (!$file || $file['error'] !== UPLOAD_ERR_OK) {
         $errors[] = 'Please choose a CSV file to upload.';
     } elseif ($file['size'] > 2 * 1024 * 1024) {
@@ -37,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Skip questions already present for this subject (so re-uploading a file is harmless).
             $existing = [];
-            foreach (db_all("SELECT question_desc FROM question WHERE class_id = ? AND subject_id = ?", 'ii', $classId, $subjectId) as $r) {
+            foreach (db_all("SELECT question_desc FROM question WHERE class_id = ? AND subject_id = ? AND level = ?", 'iis', $classId, $subjectId, $level) as $r) {
                 $existing[md5(mb_strtolower(trim(strip_tags($r['question_desc']))))] = true;
             }
             global $con;
@@ -49,11 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $existing[$key] = true;
                     $html = question_text_html($r['question']);
                     db_exec(
-                        "INSERT INTO question (class_id, subject_id, question_desc, option1, option2, option3, option4, true_answer, topic)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        'iisssssss', $classId, $subjectId, $html,
+                        "INSERT INTO question (class_id, subject_id, question_desc, option1, option2, option3, option4, true_answer, topic, level)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        'iissssssss', $classId, $subjectId, $html,
                         $r['options'][1], $r['options'][2], $r['options'][3], $r['options'][4], $r['options'][$r['correct']],
-                        $r['topic'] !== '' ? $r['topic'] : null
+                        $r['topic'] !== '' ? $r['topic'] : null, $level
                     );
                     $imported++;
                 }
@@ -92,7 +97,7 @@ if ($errors) {
                 </ol>
                 <p class="text-muted small">Up to <?php echo IMPORT_MAX_ROWS; ?> questions per file, 2 MB max. If any row has a problem,
                    nothing is imported and you are told which rows to fix. Questions already in the subject are skipped, so uploading the
-                   same file twice is safe. The question text may contain <code>&lt;sup&gt;</code> and <code>&lt;sub&gt;</code> (x&lt;sup&gt;2&lt;/sup&gt;), <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, and pictures from the <a href="images.php">Image library</a> (paste the tag it gives you). Options are plain text.</p>
+                   same file twice is safe. The question text may contain <code>&lt;sup&gt;</code> and <code>&lt;sub&gt;</code> (x&lt;sup&gt;2&lt;/sup&gt;), <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, and pictures: upload them in the <a href="images.php">Image library</a> and paste the tag it gives you into the question text. Options are plain text.</p>
             </div>
         </div>
     </div>
@@ -108,6 +113,13 @@ if ($errors) {
                             <option value="">Select class</option>
                             <?php echo class_options_html((int) ($_POST['classGroup'] ?? 0)); ?>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Level</label>
+                        <select name="level" id="level" class="form-control" required>
+                            <option value="">Select class first</option>
+                        </select>
+                        <span class="help-block small">The whole file is saved for this level. Choose <em>All levels</em> for questions that every level of the class should get.</span>
                     </div>
                     <div class="form-group">
                         <label>Subject</label>
@@ -143,7 +155,16 @@ function loadSubjects(selected) {
         sel.appendChild(o);
     });
 }
-document.getElementById('classGroup').addEventListener('change', function () { loadSubjects(); });
+var LEVELS = {junior: <?php echo json_encode(levels_for_section(true)); ?>, senior: <?php echo json_encode(levels_for_section(false)); ?>};
+function loadLevels(selected) {
+    var cs = document.getElementById('classGroup'), opt = cs.options[cs.selectedIndex], list = LEVELS[opt ? opt.getAttribute('data-section') : ''] || [], sel = document.getElementById('level');
+    var html = '<option value="">' + (list.length ? 'Select level' : 'Select class first') + '</option>';
+    if (list.length) { html += '<option value="all">All levels (' + list[0] + ' - ' + list[2] + ')</option>'; }
+    list.forEach(function (l) { html += '<option value="' + l + '">' + l + '</option>'; });
+    sel.innerHTML = html; if (selected) { sel.value = selected; }
+}
+document.getElementById('classGroup').addEventListener('change', function () { loadSubjects(); loadLevels(); });
+loadLevels(<?php echo json_encode((string) ($_POST['level'] ?? '')); ?>);
 // Keep the class and subject selected after an upload, ready for the next file.
 loadSubjects(<?php echo (int) ($_POST['classSubject'] ?? 0); ?>);
 </script>

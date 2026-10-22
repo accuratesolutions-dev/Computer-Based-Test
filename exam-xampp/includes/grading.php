@@ -43,9 +43,11 @@ function assign_exam_questions($studentId, array $subject)
     try {
         $have = db_one("SELECT COUNT(*) AS c FROM exam_question WHERE student_id = ? AND subject_id = ?", 'ii', $studentId, $subId);
         if ((int) $have['c'] === 0) {
+            // Only questions for the student's own level (JSS 1, SSS 2, ...) plus those marked "all levels".
+            $lvl = (string) (db_one("SELECT level FROM register WHERE id = ?", 'i', $studentId)['level'] ?? '');
             $bank = db_all(
-                "SELECT id, topic, option1, option2, option3, option4 FROM question WHERE class_id = ? AND subject_id = ?",
-                'ii', (int) $subject['class_id'], $subId
+                "SELECT id, topic, option1, option2, option3, option4 FROM question WHERE class_id = ? AND subject_id = ? AND (level = '' OR level = ?)",
+                'iis', (int) $subject['class_id'], $subId, $lvl
             );
             $byId = [];
             foreach ($bank as $q) { $byId[(int) $q['id']] = $q; }
@@ -109,9 +111,10 @@ function exam_questions($studentId, array $subject, $columns = 'q.id, q.question
     if ((int) $assigned['c'] > 0) {
         return []; // every assigned question was deleted since
     }
+    $lvl = (string) (db_one("SELECT level FROM register WHERE id = ?", 'i', (int) $studentId)['level'] ?? '');
     return db_all(
-        "SELECT $columns, '' AS option_order FROM question q WHERE q.class_id = ? AND q.subject_id = ? ORDER BY q.id",
-        'ii', (int) $subject['class_id'], (int) $subject['sub_id']
+        "SELECT $columns, '' AS option_order FROM question q WHERE q.class_id = ? AND q.subject_id = ? AND (q.level = '' OR q.level = ?) ORDER BY q.id",
+        'iis', (int) $subject['class_id'], (int) $subject['sub_id'], $lvl
     );
 }
 

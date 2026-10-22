@@ -70,6 +70,7 @@ function run_migrations()
         ensure_column('subject', 'question_mix', 'TEXT NULL');
         ensure_column('subject', 'shuffle_options', 'TINYINT NOT NULL DEFAULT 0');
         ensure_column('question', 'topic', 'VARCHAR(100) NULL');
+        ensure_column('question', 'level', "VARCHAR(20) NOT NULL DEFAULT ''"); // '' = every level of the class
         ensure_column('exam_question', 'option_order', "VARCHAR(20) NOT NULL DEFAULT ''");
 
         // Only for an existing installation: a brand-new empty database gets its classes (incl. Junior) from seed.sql.
@@ -88,6 +89,7 @@ function run_migrations()
             migrate_subject_updates();
         }
         db_exec("INSERT IGNORE INTO app_meta (k, v) VALUES ('schema_v4', '1')");
+        db_exec("INSERT IGNORE INTO app_meta (k, v) VALUES ('schema_v5', '1')");
     } finally {
         if ($locked && (int) $locked['l'] === 1) {
             db_one("SELECT RELEASE_LOCK('cbt_migrate') AS r");
@@ -157,8 +159,8 @@ function ensure_migrated()
     $pending = (int) $t['c'] === 0 || (int) $c['c'] === 0 || (int) $m['c'] === 0
         || ((int) $j['c'] === 0 && (int) $any['c'] > 0);
     if (!$pending && (int) $any['c'] > 0) {
-        $done = db_one("SELECT COUNT(*) AS c FROM app_meta WHERE k IN ('junior_subjects_v2', 'marketing_v1', 'schema_v4')");
-        $pending = (int) $done['c'] < 3;
+        $done = db_one("SELECT COUNT(*) AS c FROM app_meta WHERE k IN ('junior_subjects_v2', 'marketing_v1', 'schema_v4', 'schema_v5')");
+        $pending = (int) $done['c'] < 4;
     }
     if ($pending) {
         run_migrations();

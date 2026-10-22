@@ -75,6 +75,7 @@ $answeredAtStart = 0;
 foreach ($questions as $q) { if (isset($saved[(int) $q['id']])) { $answeredAtStart++; } }
 ?>
 <style>
+.card-title img { max-width: 100%; height: auto; display: block; margin: 8px 0; }
     .q-card { display: none; }
     .q-card.active { display: block; }
     .q-opt { display: flex; align-items: flex-start; padding: 10px 14px; margin-bottom: 8px; border: 1px solid #dee2e6; border-radius: 6px; cursor: pointer; background: #fff; }

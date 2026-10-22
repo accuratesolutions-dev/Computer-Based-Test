@@ -20,11 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btn-submit'])) {
     }
     $correct = (int) ($_POST['trueAnswer'] ?? 0);
     $topic   = trim(strip_tags((string) ($_POST['topic'] ?? '')));
+    $levelIn = (string) ($_POST['level'] ?? '');   // 'all' = every level of the class
+    $validLevels = levels_for_class($classId);
+    $level   = $levelIn === 'all' ? '' : (in_array($levelIn, $validLevels, true) ? $levelIn : null);
 
-    $back = 'question_portal.php?class=' . $classId . '&subject=' . $subjectId;
+    $back = 'question_portal.php?class=' . $classId . '&subject=' . $subjectId . '&level=' . rawurlencode($levelIn);
     if (!db_one("SELECT sub_id FROM subject WHERE sub_id = ? AND class_id = ?", 'ii', $subjectId, $classId)) {
         flash_set('danger', 'Please choose a valid class and subject.');
         $back = 'question_portal.php';
+    } elseif ($level === null) {
+        flash_set('danger', 'Please choose the level (e.g. ' . $validLevels[0] . ') or "All levels".');
     } elseif (trim(strip_tags($desc, '<img>')) === '') {
         flash_set('danger', 'The question cannot be empty.');
     } elseif (in_array('', $opts, true)) {
@@ -33,13 +38,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btn-submit'])) {
         flash_set('danger', 'Please select which option is correct.');
     } else {
         db_exec(
-            "INSERT INTO question (class_id, subject_id, question_desc, option1, option2, option3, option4, true_answer, topic)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            'iisssssss', $classId, $subjectId, $desc, $opts[1], $opts[2], $opts[3], $opts[4], $opts[$correct],
-            $topic !== '' ? mb_substr($topic, 0, 100) : null
+            "INSERT INTO question (class_id, subject_id, question_desc, option1, option2, option3, option4, true_answer, topic, level)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            'iissssssss', $classId, $subjectId, $desc, $opts[1], $opts[2], $opts[3], $opts[4], $opts[$correct],
+            $topic !== '' ? mb_substr($topic, 0, 100) : null, $level
         );
         $n = (int) db_one("SELECT COUNT(*) AS c FROM question WHERE subject_id = ?", 'i', $subjectId)['c'];
-        flash_set('success', "Question uploaded! This subject now has $n question(s). Add the next one below.");
+        flash_set('success', 'Question uploaded for ' . ($level === '' ? 'all levels' : $level) . "! This subject now has $n question(s). Add the next one below.");
     }
     header('Location: ' . $back);
     exit;

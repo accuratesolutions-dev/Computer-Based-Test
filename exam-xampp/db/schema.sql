@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS `question` (
   `option4` text NOT NULL,
   `true_answer` text NOT NULL COMMENT 'text of the correct option',
   `topic` varchar(100) NULL,
+  `level` varchar(20) NOT NULL DEFAULT '' COMMENT 'J.S.S 1 / S.S.S 2 ...; empty = every level of the class',
   `uploaded_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_question_class_subject` (`class_id`,`subject_id`)

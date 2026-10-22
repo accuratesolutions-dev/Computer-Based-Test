@@ -14,16 +14,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $subjectId = (int) ($_GET['subject'] ?? 0);
+$levelF = (string) ($_GET['level'] ?? '');   // '' = any, 'all' = only all-level questions, or a level label
+$levelWhere = $levelF === '' ? '1=1' : ($levelF === 'all' ? "q.level = ''" : 'q.level = ?');
+$lvlParams = ($levelF !== '' && $levelF !== 'all') ? [$levelF] : [];
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $per = 50;
-$total = (int) db_one("SELECT COUNT(*) AS c FROM question WHERE (? = 0 OR subject_id = ?)", 'ii', $subjectId, $subjectId)['c'];
+$total = (int) db_one("SELECT COUNT(*) AS c FROM question q WHERE (? = 0 OR q.subject_id = ?) AND $levelWhere", 'ii' . ($lvlParams ? 's' : ''), $subjectId, $subjectId, ...$lvlParams)['c'];
 $pages = max(1, (int) ceil($total / $per));
 $page = min($page, $pages);
 $rows = db_all(
-    "SELECT q.id, q.topic, q.question_desc, q.option1, q.option2, q.option3, q.option4, q.true_answer, s.sub_name, c.class
+    "SELECT q.id, q.topic, q.level, q.question_desc, q.option1, q.option2, q.option3, q.option4, q.true_answer, s.sub_name, c.class
        FROM question q JOIN subject s ON s.sub_id = q.subject_id JOIN class c ON c.id = q.class_id
-      WHERE (? = 0 OR q.subject_id = ?) ORDER BY q.id DESC LIMIT ? OFFSET ?",
-    'iiii', $subjectId, $subjectId, $per, ($page - 1) * $per
+      WHERE (? = 0 OR q.subject_id = ?) AND $levelWhere ORDER BY q.id DESC LIMIT ? OFFSET ?",
+    'ii' . ($lvlParams ? 's' : '') . 'ii', $subjectId, $subjectId, ...array_merge($lvlParams, [$per, ($page - 1) * $per])
 );
 
 admin_head('Questions', 'questions');
@@ -36,6 +39,11 @@ flash_show();
             <option value="<?php echo (int) $s['sub_id']; ?>"<?php echo $subjectId === (int) $s['sub_id'] ? ' selected' : ''; ?>><?php echo e($s['class'] . ' — ' . trim($s['sub_name'])); ?></option>
         <?php endforeach; ?>
     </select>
+    <select name="level" class="form-control" onchange="this.form.submit()">
+        <option value="">Any level</option>
+        <option value="all"<?php echo $levelF === 'all' ? ' selected' : ''; ?>>All-level questions only</option>
+        <?php foreach (array_merge(levels_for_section(true), levels_for_section(false)) as $lv): ?><option value="<?php echo e($lv); ?>"<?php echo $levelF === $lv ? ' selected' : ''; ?>><?php echo e($lv); ?></option><?php endforeach; ?>
+    </select>
     <span class="text-muted"><?php echo $total; ?> question(s)</span>
     <a class="btn btn-success pull-right" href="question_portal.php<?php echo $subjectId ? '?class=' . (int) (db_one("SELECT class_id FROM subject WHERE sub_id = ?", 'i', $subjectId)['class_id'] ?? 0) . '&subject=' . $subjectId : ''; ?>"><i class="fa fa-plus"></i> Upload question</a>
     <a class="btn btn-default pull-right" href="question_import.php" style="margin-right:8px;"><i class="fa fa-upload"></i> Bulk upload (CSV)</a>
@@ -43,9 +51,9 @@ flash_show();
 
 <div class="panel panel-default"><div class="table-responsive">
 <table class="table table-striped table-hover table-tight" style="margin:0;">
-    <thead><tr><th>#</th><th>Class / Subject</th><th>Question</th><th>Correct answer</th><th style="width:150px;"></th></tr></thead>
+    <thead><tr><th>#</th><th>Class / Subject</th><th>Level</th><th>Question</th><th>Correct answer</th><th style="width:150px;"></th></tr></thead>
     <tbody>
-    <?php if (!$rows): ?><tr><td colspan="5" class="text-center text-muted">No questions found.</td></tr><?php endif; ?>
+    <?php if (!$rows): ?><tr><td colspan="6" class="text-center text-muted">No questions found.</td></tr><?php endif; ?>
     <?php foreach ($rows as $r):
         $text = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($r['question_desc']), ENT_QUOTES, 'UTF-8')));
         $text = mb_strlen($text) > 110 ? mb_substr($text, 0, 110) . '…' : $text;
@@ -56,6 +64,7 @@ flash_show();
         <tr>
             <td><?php echo (int) $r['id']; ?></td>
             <td><?php echo e($r['class']); ?><br><small class="text-muted"><?php echo e(trim($r['sub_name'])); ?></small><?php if (trim((string) $r['topic']) !== ''): ?><br><span class="label label-default"><?php echo e($r['topic']); ?></span><?php endif; ?></td>
+            <td><?php echo $r['level'] === '' ? '<span class="text-muted">All</span>' : '<span class="label label-info">' . e($r['level']) . '</span>'; ?></td>
             <td class="q-snippet"><?php echo e($text !== '' ? $text : '(image / no text)'); ?></td>
             <td><strong><?php echo e($letter); ?></strong> <small class="text-muted"><?php echo e(mb_strimwidth($r['true_answer'], 0, 40, '…')); ?></small></td>
             <td>
@@ -73,7 +82,7 @@ flash_show();
 
 <?php if ($pages > 1): ?>
 <ul class="pager">
-    <?php $qs = $subjectId ? '&subject=' . $subjectId : ''; ?>
+    <?php $qs = ($subjectId ? '&subject=' . $subjectId : '') . ($levelF !== '' ? '&level=' . rawurlencode($levelF) : ''); ?>
     <li class="previous<?php echo $page <= 1 ? ' disabled' : ''; ?>"><a href="?page=<?php echo max(1, $page - 1) . $qs; ?>">&larr; Newer</a></li>
     <li>Page <?php echo $page; ?> of <?php echo $pages; ?></li>
     <li class="next<?php echo $page >= $pages ? ' disabled' : ''; ?>"><a href="?page=<?php echo min($pages, $page + 1) . $qs; ?>">Older &rarr;</a></li>

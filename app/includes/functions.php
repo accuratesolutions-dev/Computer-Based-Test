@@ -189,6 +189,10 @@ function safe_html($html)
     $html = strip_tags((string) $html, '<p><br><b><strong><i><em><u><sub><sup><ul><ol><li><img><table><thead><tbody><tr><td><th><span><div><h1><h2><h3><h4>');
     $html = preg_replace('/\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $html);
     $html = preg_replace('/(href|src)\s*=\s*("|\')\s*javascript:[^"\']*("|\')/i', '', $html);
+    // Pictures pasted as inline data would bloat the database; only library pictures are kept.
+    $html = preg_replace('/<img\b[^>]*\ssrc\s*=\s*("|\')\s*data:[^>]*>/i', '', $html);
+    // The editor shows pictures as ../uploads/questions/x.png (it lives in /admin); store them relative to the site root.
+    $html = preg_replace('~(src\s*=\s*["\'])(?:\.\./)+(uploads/questions/)~i', '$1$2', $html);
     return $html;
 }
 

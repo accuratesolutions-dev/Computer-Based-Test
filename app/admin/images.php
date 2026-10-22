@@ -1,9 +1,8 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
 
-$dir = dirname(__DIR__) . '/uploads/questions';
-if (!is_dir($dir)) { @mkdir($dir, 0755, true); }
-const IMG_MAX_BYTES = 500 * 1024;
+require_once __DIR__ . '/../includes/question_images.php';
+$dir = qimg_dir();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_check()) { http_response_code(403); exit('Invalid or expired form token. Reload the page and try again.'); }
@@ -24,18 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (isset($_FILES['pics'])) {
         $ok = 0; $bad = [];
         $files = $_FILES['pics'];
-        $allowed = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif'];
-        if (defined('IMAGETYPE_WEBP')) { $allowed[IMAGETYPE_WEBP] = 'webp'; }
         foreach ((array) $files['name'] as $i => $orig) {
             if ($files['error'][$i] === UPLOAD_ERR_NO_FILE) { continue; }
-            if ($files['error'][$i] !== UPLOAD_ERR_OK) { $bad[] = "$orig: upload failed"; continue; }
-            if ($files['size'][$i] > IMG_MAX_BYTES) { $bad[] = "$orig: larger than 500 KB"; continue; }
-            $info = @getimagesize($files['tmp_name'][$i]);
-            if (!$info || !isset($allowed[$info[2]])) { $bad[] = "$orig: not a JPG, PNG or GIF picture"; continue; }
-            $base = strtolower(preg_replace('/[^A-Za-z0-9]+/', '-', pathinfo((string) $orig, PATHINFO_FILENAME)));
-            $base = trim(substr($base, 0, 30), '-') ?: 'picture';
-            $name = $base . '-' . bin2hex(random_bytes(2)) . '.' . $allowed[$info[2]];
-            if (move_uploaded_file($files['tmp_name'][$i], $dir . '/' . $name)) { $ok++; } else { $bad[] = "$orig: could not be saved"; }
+            [$saved, $err] = qimg_store($files['tmp_name'][$i], $orig, (int) $files['size'][$i], (int) $files['error'][$i]);
+            if ($err === '') { $ok++; } else { $bad[] = "$orig: $err"; }
         }
         if ($ok) { flash_set('success', "$ok picture(s) uploaded. Copy the tag below into your question."); }
         if ($bad) { flash_set($ok ? 'warning' : 'danger', implode('; ', array_slice($bad, 0, 5))); }
@@ -65,7 +56,7 @@ flash_show();
                     <button class="btn btn-success"><i class="fa fa-upload"></i> Upload</button>
                 </form>
                 <hr>
-                <p class="small text-muted">JPG, PNG or GIF, up to 500 KB each (about <?php echo (int) ini_get('max_file_uploads'); ?> at a time). Keep diagrams small and clear &mdash; students see them on a lab screen.</p>
+                <p class="small text-muted">JPG, PNG or GIF, up to 6 MB each (large pictures are shrunk automatically) (about <?php echo (int) ini_get('max_file_uploads'); ?> at a time). Keep diagrams small and clear &mdash; students see them on a lab screen.</p>
                 <p class="small"><strong>Using a picture</strong></p>
                 <ul class="small" style="padding-left:18px;">
                     <li><strong>Bulk upload:</strong> paste the tag into the <em>question</em> cell of your CSV.</li>

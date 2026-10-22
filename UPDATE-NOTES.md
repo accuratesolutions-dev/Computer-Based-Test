@@ -23,3 +23,7 @@ Not done: updating the bundled jQuery 3.2.1, Bootstrap 3.3.7/4.0.0 and CKEditor 
 Not tested: everything was tested against a SQLite stand-in for the database, not real MySQL/MariaDB. Do the rehearsal in Settings > System on the real server before exam day.
 
 Earlier (v3): Junior class JSS1-3 with the school subject list, Marketing for Science/Art/Commercial, random question set per student, seamless navigation.
+
+## v4.1
+- **Level on every question** (JSS 1/2/3 for the Junior class, SSS 1/2/3 for Senior classes, or "All levels"): choose it when uploading a question, in Bulk upload and when editing. Students only get the questions for their own level plus the all-level ones. Existing questions stay "All levels". The question list has a level column and filter.
+- **Add picture button** in the question editor (upload from your computer or phone; large pictures are shrunk automatically; JPG/PNG/GIF up to 6 MB). Subscript and superscript buttons are back in the editor for maths. Pasted (inline) pictures are not accepted; use the button.

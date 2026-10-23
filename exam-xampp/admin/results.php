@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/grading.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_check()) { http_response_code(403); exit('Invalid or expired form token.'); }
     if (isset($_POST['reset'])) {
+        require_admin_role();
         $sid = (int) ($_POST['student_id'] ?? 0);
         $sub = (int) ($_POST['subject_id'] ?? 0);
         db_exec("DELETE FROM exam_result WHERE student_id = ? AND subject_id = ?", 'ii', $sid, $sub);
@@ -32,7 +33,7 @@ $rows = db_all(
        JOIN register r ON r.id = e.student_id
        JOIN subject s ON s.sub_id = e.subject_id
        JOIN class c ON c.id = e.class_id
-      WHERE (? = 0 OR e.subject_id = ?)
+      WHERE (? = 0 OR e.subject_id = ?) AND " . subject_scope_sql('e.subject_id') . "
         AND (r.examNumber LIKE ? OR r.surname LIKE ? OR r.otherNames LIKE ?)
       ORDER BY e.submitted_at DESC
       LIMIT 5000",
@@ -59,9 +60,9 @@ foreach ($rows as $r) { if ((float) $r['percent'] >= pass_mark()) { $pass++; } }
 
 $inProgress = [];
 foreach (db_all("SELECT d.*, r.examNumber, r.surname, r.otherNames, s.sub_name FROM dosubject d
-                   JOIN register r ON r.id = d.dostd_id JOIN subject s ON s.sub_id = d.dosub_id WHERE d.istaken = 0") as $a) {
-    $left = strtotime($a['time']) + ((int) $a['duration'] * 60) - time();
-    if ($left > 0) { $a['left'] = $left; $inProgress[] = $a; }
+                   JOIN register r ON r.id = d.dostd_id JOIN subject s ON s.sub_id = d.dosub_id WHERE d.istaken = 0 AND " . subject_scope_sql('d.dosub_id')) as $a) {
+    $left = attempt_remaining($a);
+    if ($left > 0 || attempt_is_paused($a)) { $a['left'] = $left; $inProgress[] = $a; }
 }
 
 admin_head('Exam Results', 'results');
@@ -95,7 +96,7 @@ if ($autoGraded > 0) {
     <table class="table table-condensed table-tight" style="margin:0;">
         <?php foreach ($inProgress as $a): ?>
             <tr><td><?php echo e($a['examNumber']); ?></td><td><?php echo e($a['surname'] . ' ' . $a['otherNames']); ?></td>
-                <td><?php echo e(trim($a['sub_name'])); ?></td><td><?php echo floor($a['left'] / 60); ?> min left</td></tr>
+                <td><?php echo e(trim($a['sub_name'])); ?></td><td><?php echo attempt_is_paused($a) ? "<span class=\"label label-warning\">PAUSED</span> " : ""; echo floor($a["left"] / 60); ?> min left</td></tr>
         <?php endforeach; ?>
     </table>
 </div>
@@ -119,12 +120,12 @@ if ($autoGraded > 0) {
                 <td><strong><?php echo e($g['grade']); ?></strong> <small class="text-muted"><?php echo e($g['remark']); ?></small></td>
                 <td><?php echo e($r['submitted_at']); ?></td>
                 <td>
-                    <form method="post" onsubmit="return confirm('Delete this result so the student can retake the subject?');">
+                    <?php if (is_admin_role()): ?><form method="post" onsubmit="return confirm('Delete this result so the student can retake the subject?');">
                         <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
                         <input type="hidden" name="student_id" value="<?php echo (int) $r['student_id']; ?>">
                         <input type="hidden" name="subject_id" value="<?php echo (int) $r['subject_id']; ?>">
                         <button class="btn btn-xs btn-default" name="reset" value="1" title="Allow retake"><i class="fa fa-undo"></i> Reset</button>
-                    </form>
+                    </form><?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; ?>

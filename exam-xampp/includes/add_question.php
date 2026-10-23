@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['btn-submit'])) {
     $level   = $levelIn === 'all' ? '' : (in_array($levelIn, $validLevels, true) ? $levelIn : null);
 
     $back = 'question_portal.php?class=' . $classId . '&subject=' . $subjectId . '&level=' . rawurlencode($levelIn);
-    if (!db_one("SELECT sub_id FROM subject WHERE sub_id = ? AND class_id = ?", 'ii', $subjectId, $classId)) {
+    if (!db_one("SELECT sub_id FROM subject WHERE sub_id = ? AND class_id = ?", 'ii', $subjectId, $classId) || !subject_allowed($subjectId)) {
         flash_set('danger', 'Please choose a valid class and subject.');
         $back = 'question_portal.php';
     } elseif ($level === null) {

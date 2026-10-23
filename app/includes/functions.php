@@ -293,3 +293,19 @@ function options_are_positional(array $opts)
     }
     return false;
 }
+
+/* ---------- attempt clock (supports invigilator pause / reset / extra time) ---------- */
+
+/** Seconds left. While paused the value is frozen at the moment of the pause. */
+function attempt_remaining(array $a, $now = null)
+{
+    $now = $now ?? time();
+    $end = strtotime($a['time']) + ((int) $a['duration'] * 60) + (int) ($a['extra_seconds'] ?? 0);
+    $ref = !empty($a['paused_at']) ? strtotime($a['paused_at']) : $now;
+    return $end - $ref;
+}
+
+function attempt_is_paused(array $a)
+{
+    return !empty($a['paused_at']);
+}

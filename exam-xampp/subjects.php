@@ -14,8 +14,10 @@ foreach (db_all("SELECT subject_id, correct, total, percent FROM exam_result WHE
     $done[(int) $r['subject_id']] = $r;
 }
 $started = [];   // subject_id => seconds left, for attempts that are in progress
-foreach (db_all("SELECT dosub_id, time, duration FROM dosubject WHERE dostd_id = ? AND istaken = 0", 'i', $studentId) as $r) {
-    $started[(int) $r['dosub_id']] = strtotime($r['time']) + ((int) $r['duration'] * 60) - time();
+$pausedSubs = [];
+foreach (db_all("SELECT dosub_id, time, duration, paused_at, extra_seconds FROM dosubject WHERE dostd_id = ? AND istaken = 0", 'i', $studentId) as $r) {
+    $started[(int) $r['dosub_id']] = attempt_remaining($r);
+    if (attempt_is_paused($r)) { $pausedSubs[(int) $r['dosub_id']] = true; }
 }
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
@@ -62,7 +64,7 @@ include __DIR__ . '/includes/header.php';
                                     <small class="text-muted">(<?php echo e($done[$id]['percent']); ?>%)</small>
                                 <?php elseif (isset($started[$id])): ?>
                                     <a href="take_exam.php?sID=<?php echo $id; ?>" class="btn btn-warning">RESUME</a>
-                                    <small class="text-muted ml-2"><?php echo $started[$id] > 0 ? floor($started[$id] / 60) . ' min left' : 'time is up'; ?></small>
+                                    <small class="text-muted ml-2"><?php echo isset($pausedSubs[$id]) ? '<strong class="text-danger">PAUSED by invigilator</strong> - ' : ''; echo $started[$id] > 0 ? floor($started[$id] / 60) . ' min left' : 'time is up'; ?></small>
                                 <?php elseif ($open): ?>
                                     <a href="take_exam.php?sID=<?php echo $id; ?>" class="btn btn-success js-start"
                                        data-name="<?php echo e(trim($s['sub_name'])); ?>" data-mins="<?php echo $mins; ?>"

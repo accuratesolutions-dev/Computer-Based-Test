@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS `admin` (
   `id` int NOT NULL AUTO_INCREMENT,
   `Username` varchar(50) NOT NULL,
   `Password` varchar(255) NOT NULL,
+  `role` varchar(20) NOT NULL DEFAULT 'admin' COMMENT 'admin or teacher',
   `RegDate` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_admin_username` (`Username`)
@@ -95,6 +96,8 @@ CREATE TABLE IF NOT EXISTS `dosubject` (
   `time` datetime NOT NULL COMMENT 'attempt start (app timezone)',
   `duration` int NOT NULL COMMENT 'minutes',
   `istaken` tinyint NOT NULL DEFAULT 0,
+  `paused_at` datetime NULL COMMENT 'set while the invigilator has paused this student',
+  `extra_seconds` int NOT NULL DEFAULT 0 COMMENT 'time given back after pauses or added by the invigilator',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_attempt` (`dostd_id`,`dosub_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -153,4 +156,11 @@ CREATE TABLE IF NOT EXISTS `app_meta` (
   `k` varchar(50) NOT NULL,
   `v` varchar(255) NOT NULL,
   PRIMARY KEY (`k`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Which subjects a teacher account may work on (no rows = all subjects).
+CREATE TABLE IF NOT EXISTS `teacher_subject` (
+  `admin_id` int NOT NULL,
+  `subject_id` int NOT NULL,
+  PRIMARY KEY (`admin_id`,`subject_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

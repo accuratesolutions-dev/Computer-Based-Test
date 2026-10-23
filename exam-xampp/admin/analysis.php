@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../includes/admin_layout.php';
 
 $subjectId = (int) ($_GET['subject'] ?? 0);
-$subject = $subjectId ? db_one("SELECT s.sub_id, s.sub_name, c.class FROM subject s JOIN class c ON c.id = s.class_id WHERE s.sub_id = ?", 'i', $subjectId) : null;
+$subject = ($subjectId && subject_allowed($subjectId)) ? db_one("SELECT s.sub_id, s.sub_name, c.class FROM subject s JOIN class c ON c.id = s.class_id WHERE s.sub_id = ?", 'i', $subjectId) : null;
 
 $items = [];
 if ($subject) {

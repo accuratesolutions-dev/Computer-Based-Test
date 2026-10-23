@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
+require_admin_role();
 
 const PHOTO_MAX_BYTES = 2097152; // 2 MB per photo
 $photoDir = realpath(__DIR__ . '/../onlineForm/images/Student_Images') ?: (__DIR__ . '/../onlineForm/images/Student_Images');

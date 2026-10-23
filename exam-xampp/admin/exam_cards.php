@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
+require_admin_role();
 
 $classId = (int) ($_GET['class'] ?? 0);
 $level = trim((string) ($_GET['level'] ?? ''));

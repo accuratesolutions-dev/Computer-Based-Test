@@ -28,8 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         "SELECT * FROM dosubject WHERE dostd_id = ? AND doclass_id = ? AND dosub_id = ?",
         'iii', $studentId, (int) $subject['class_id'], $subId
     );
-    $withinTime = $attempt
-        && (time() <= strtotime($attempt['time']) + ((int) $attempt['duration'] * 60) + 60);
+    $withinTime = $attempt && attempt_remaining($attempt) >= -60;
     finalize_exam($studentId, $subject, $_POST, $withinTime);
     unset($_SESSION['exam_sub_id']);
     redirect('result.php?sID=' . $subId);

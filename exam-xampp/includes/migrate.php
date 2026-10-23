@@ -70,6 +70,10 @@ function run_migrations()
         ensure_column('subject', 'question_mix', 'TEXT NULL');
         ensure_column('subject', 'shuffle_options', 'TINYINT NOT NULL DEFAULT 0');
         ensure_column('question', 'topic', 'VARCHAR(100) NULL');
+        ensure_column('dosubject', 'paused_at', 'DATETIME NULL');              // invigilator pause
+        ensure_column('dosubject', 'extra_seconds', 'INT NOT NULL DEFAULT 0'); // time given back after a pause / added by the invigilator
+        ensure_column('admin', 'role', "VARCHAR(20) NOT NULL DEFAULT 'admin'");
+        db_exec("CREATE TABLE IF NOT EXISTS teacher_subject (admin_id INT NOT NULL, subject_id INT NOT NULL, PRIMARY KEY (admin_id, subject_id))");
         ensure_column('question', 'level', "VARCHAR(20) NOT NULL DEFAULT ''"); // '' = every level of the class
         ensure_column('exam_question', 'option_order', "VARCHAR(20) NOT NULL DEFAULT ''");
 
@@ -90,6 +94,7 @@ function run_migrations()
         }
         db_exec("INSERT IGNORE INTO app_meta (k, v) VALUES ('schema_v4', '1')");
         db_exec("INSERT IGNORE INTO app_meta (k, v) VALUES ('schema_v5', '1')");
+        db_exec("INSERT IGNORE INTO app_meta (k, v) VALUES ('schema_v6', '1')");
     } finally {
         if ($locked && (int) $locked['l'] === 1) {
             db_one("SELECT RELEASE_LOCK('cbt_migrate') AS r");
@@ -156,11 +161,12 @@ function ensure_migrated()
     $j = db_one("SELECT COUNT(*) AS c FROM class WHERE UPPER(sortname) = ? OR class LIKE '%Junior%'", 's', JUNIOR_CLASS_CODE);
     $any = db_one("SELECT COUNT(*) AS c FROM class");
     $m = db_one("SELECT COUNT(*) AS c FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_meta'");
-    $pending = (int) $t['c'] === 0 || (int) $c['c'] === 0 || (int) $m['c'] === 0
+    $ts = db_one("SELECT COUNT(*) AS c FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'teacher_subject'");
+    $pending = (int) $t['c'] === 0 || (int) $c['c'] === 0 || (int) $m['c'] === 0 || (int) $ts['c'] === 0
         || ((int) $j['c'] === 0 && (int) $any['c'] > 0);
     if (!$pending && (int) $any['c'] > 0) {
-        $done = db_one("SELECT COUNT(*) AS c FROM app_meta WHERE k IN ('junior_subjects_v2', 'marketing_v1', 'schema_v4', 'schema_v5')");
-        $pending = (int) $done['c'] < 4;
+        $done = db_one("SELECT COUNT(*) AS c FROM app_meta WHERE k IN ('junior_subjects_v2', 'marketing_v1', 'schema_v4', 'schema_v5', 'schema_v6')");
+        $pending = (int) $done['c'] < 5;
     }
     if ($pending) {
         run_migrations();

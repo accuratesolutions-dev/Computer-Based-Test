@@ -1,7 +1,19 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
+require_admin_role();
 
 $me = (int) $_SESSION['admin_id'];
+
+// Replace a teacher's subject list (empty list = may work on every subject).
+function save_teacher_subjects($adminId, array $subjectIds)
+{
+    db_exec("DELETE FROM teacher_subject WHERE admin_id = ?", 'i', $adminId);
+    foreach (array_unique(array_map('intval', $subjectIds)) as $sid) {
+        if ($sid > 0 && db_one("SELECT sub_id FROM subject WHERE sub_id = ?", 'i', $sid)) {
+            db_exec("INSERT IGNORE INTO teacher_subject (admin_id, subject_id) VALUES (?, ?)", 'ii', $adminId, $sid);
+        }
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_check()) { http_response_code(403); exit('Invalid or expired form token. Reload the page and try again.'); }
@@ -62,8 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (db_one("SELECT id FROM admin WHERE Username = ?", 's', $u)) {
             flash_set('danger', 'That username already exists.');
         } else {
-            db_exec("INSERT INTO admin (Username, Password) VALUES (?, ?)", 'ss', $u, password_hash($p, PASSWORD_DEFAULT));
-            flash_set('success', "Administrator \"$u\" added.");
+            $role = ($_POST['role'] ?? 'admin') === 'teacher' ? 'teacher' : 'admin';
+            db_exec("INSERT INTO admin (Username, Password, role) VALUES (?, ?, ?)", 'sss', $u, password_hash($p, PASSWORD_DEFAULT), $role);
+            if ($role === 'teacher') { save_teacher_subjects(db_insert_id(), (array) ($_POST['subjects'] ?? [])); }
+            flash_set('success', ($role === 'teacher' ? 'Teacher' : 'Administrator') . " \"$u\" added.");
         }
         $go = 'settings.php#admins';
     } elseif (isset($_POST['resetPassword'])) {
@@ -91,16 +105,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('success', 'Username changed.');
         }
         $go = 'settings.php#admins';
+    } elseif (isset($_POST['saveRole'])) {
+        $id = (int) ($_POST['id'] ?? 0);
+        $role = ($_POST['role'] ?? 'admin') === 'teacher' ? 'teacher' : 'admin';
+        $target = db_one("SELECT id, role FROM admin WHERE id = ?", 'i', $id);
+        $otherAdmins = (int) db_one("SELECT COUNT(*) AS c FROM admin WHERE role = 'admin' AND id <> ?", 'i', $id)['c'];
+        if (!$target) {
+            flash_set('danger', 'That account no longer exists.');
+        } elseif ($role === 'teacher' && ($id === $me || $otherAdmins < 1)) {
+            flash_set('danger', $id === $me ? 'You cannot make your own account a teacher.' : 'At least one administrator must remain.');
+        } else {
+            db_exec("UPDATE admin SET role = ? WHERE id = ?", 'si', $role, $id);
+            save_teacher_subjects($id, $role === 'teacher' ? (array) ($_POST['subjects'] ?? []) : []);
+            flash_set('success', 'Role saved.');
+        }
+        $go = 'settings.php#admins';
     } elseif (isset($_POST['deleteAdmin'])) {
         $id = (int) ($_POST['id'] ?? 0);
-        $count = (int) db_one("SELECT COUNT(*) AS c FROM admin")['c'];
+        $target = db_one("SELECT role FROM admin WHERE id = ?", 'i', $id);
+        $otherAdmins = (int) db_one("SELECT COUNT(*) AS c FROM admin WHERE role = 'admin' AND id <> ?", 'i', $id)['c'];
         if ($id === $me) {
             flash_set('danger', 'You cannot delete the account you are logged in with.');
-        } elseif ($count <= 1) {
+        } elseif ($target && $target['role'] === 'admin' && $otherAdmins < 1) {
             flash_set('danger', 'At least one administrator must remain.');
         } else {
             db_exec("DELETE FROM admin WHERE id = ?", 'i', $id);
-            flash_set('success', 'Administrator removed.');
+            db_exec("DELETE FROM teacher_subject WHERE admin_id = ?", 'i', $id);
+            flash_set('success', 'Account removed.');
         }
         $go = 'settings.php#admins';
     }
@@ -109,7 +140,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $instructions = getAllInstruction();
-$admins = db_all("SELECT id, Username, RegDate FROM admin ORDER BY id");
+$admins = db_all("SELECT id, Username, RegDate, role FROM admin ORDER BY id");
+$assigned = [];
+foreach (db_all("SELECT admin_id, subject_id FROM teacher_subject") as $r) { $assigned[(int) $r['admin_id']][(int) $r['subject_id']] = true; }
+$allSubjects = db_all("SELECT s.sub_id, s.sub_name, c.class FROM subject s JOIN class c ON c.id = s.class_id ORDER BY c.id, s.sub_name");
+function subject_checkboxes(array $subjects, array $ticked)
+{
+    $out = '<div style="max-height:170px;overflow:auto;border:1px solid #ddd;padding:6px 10px;background:#fff;">'; $last = null;
+    foreach ($subjects as $s) {
+        if ($s['class'] !== $last) { $out .= '<div class="small text-muted" style="margin-top:4px;"><strong>' . e($s['class']) . '</strong></div>'; $last = $s['class']; }
+        $out .= '<label style="font-weight:normal;display:block;margin:0;"><input type="checkbox" name="subjects[]" value="' . (int) $s['sub_id'] . '"' . (isset($ticked[(int) $s['sub_id']]) ? ' checked' : '') . '> ' . e(trim($s['sub_name'])) . '</label>';
+    }
+    return $out . '</div>';
+}
 $scale = grade_scale();
 while (count($scale) < 8) { $scale[] = ['', '', '']; }
 $closes = (string) setting('registration_closes', '');
@@ -194,12 +237,14 @@ flash_show();
         </div>
 
         <div class="panel panel-default" id="admins">
-            <div class="panel-heading panel-heading-brand">Administrators</div>
+            <div class="panel-heading panel-heading-brand">Administrators &amp; teachers</div>
             <ul class="list-group">
                 <?php foreach ($admins as $a): $aid = (int) $a['id']; ?>
                     <li class="list-group-item">
                         <div class="clearfix">
                             <strong><i class="fa fa-user"></i> <?php echo e($a['Username']); ?></strong>
+                            <span class="label label-<?php echo $a['role'] === 'teacher' ? 'info' : 'primary'; ?>"><?php echo $a['role'] === 'teacher' ? 'teacher' : 'administrator'; ?></span>
+                            <?php if ($a['role'] === 'teacher'): ?><small class="text-muted"><?php echo !empty($assigned[$aid]) ? count($assigned[$aid]) . ' subject(s)' : 'all subjects'; ?></small><?php endif; ?>
                             <?php if ($aid === $me): ?><span class="label label-success">you</span><?php endif; ?>
                             <button type="button" class="btn btn-xs btn-default pull-right" data-toggle="collapse" data-target="#adm<?php echo $aid; ?>">Manage</button>
                         </div>
@@ -214,8 +259,18 @@ flash_show();
                                 <input type="password" name="password" minlength="10" placeholder="New password (10+ characters)" autocomplete="new-password" class="form-control input-sm" required>
                                 <button class="btn btn-sm btn-primary" name="resetPassword" value="1">Change password</button>
                             </form>
+                            <form method="post" style="margin-bottom:6px;">
+                                <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>"><input type="hidden" name="id" value="<?php echo $aid; ?>">
+                                <div class="form-group" style="margin-bottom:6px;"><select name="role" class="form-control input-sm" style="width:auto;display:inline-block;">
+                                    <option value="admin"<?php echo $a['role'] !== 'teacher' ? ' selected' : ''; ?>>Administrator (everything)</option>
+                                    <option value="teacher"<?php echo $a['role'] === 'teacher' ? ' selected' : ''; ?>>Teacher (questions and results)</option>
+                                </select></div>
+                                <div class="small text-muted">For a teacher, tick the subjects they may work on. Tick none = all subjects.</div>
+                                <?php echo subject_checkboxes($allSubjects, $assigned[$aid] ?? []); ?>
+                                <button class="btn btn-sm btn-default" name="saveRole" value="1" style="margin-top:6px;">Save role</button>
+                            </form>
                             <?php if ($aid !== $me): ?>
-                            <form method="post" onsubmit="return confirm('Remove this administrator?');">
+                            <form method="post" onsubmit="return confirm('Remove this account?');">
                                 <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>"><input type="hidden" name="id" value="<?php echo $aid; ?>">
                                 <button class="btn btn-sm btn-danger" name="deleteAdmin" value="1"><i class="fa fa-trash"></i> Remove</button>
                             </form>
@@ -227,12 +282,21 @@ flash_show();
             <div class="panel-body">
                 <form method="post" autocomplete="off">
                     <input type="hidden" name="csrf" value="<?php echo e(csrf_token()); ?>">
-                    <div class="form-group"><label>New administrator</label><input type="text" name="username" class="form-control" placeholder="Username" required></div>
+                    <div class="form-group"><label>New account</label><input type="text" name="username" class="form-control" placeholder="Username" required></div>
+                    <div class="form-group"><select name="role" class="form-control" id="newRole">
+                        <option value="admin">Administrator (everything)</option>
+                        <option value="teacher">Teacher (questions and results only)</option>
+                    </select></div>
+                    <div class="form-group" id="newSubjects" style="display:none;"><div class="small text-muted">Subjects this teacher may work on (none ticked = all subjects):</div><?php echo subject_checkboxes($allSubjects, []); ?></div>
                     <div class="form-group"><input type="password" name="password" class="form-control" minlength="10" placeholder="Password (at least 10 characters)" autocomplete="new-password" required></div>
-                    <button class="btn btn-success" name="addAdmin" value="1"><i class="fa fa-user-plus"></i> Add administrator</button>
+                    <button class="btn btn-success" name="addAdmin" value="1"><i class="fa fa-user-plus"></i> Add account</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+<script>
+(function () { var r = document.getElementById('newRole'), s = document.getElementById('newSubjects');
+  if (r) { r.addEventListener('change', function () { s.style.display = r.value === 'teacher' ? 'block' : 'none'; }); } })();
+</script>
 <?php admin_foot();

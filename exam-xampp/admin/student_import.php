@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
+require_admin_role();
 require_once __DIR__ . '/../includes/student_import.php';
 
 if (isset($_GET['template'])) {

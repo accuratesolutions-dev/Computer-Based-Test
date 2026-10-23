@@ -27,3 +27,9 @@ Earlier (v3): Junior class JSS1-3 with the school subject list, Marketing for Sc
 ## v4.1
 - **Level on every question** (JSS 1/2/3 for the Junior class, SSS 1/2/3 for Senior classes, or "All levels"): choose it when uploading a question, in Bulk upload and when editing. Students only get the questions for their own level plus the all-level ones. Existing questions stay "All levels". The question list has a level column and filter.
 - **Add picture button** in the question editor (upload from your computer or phone; large pictures are shrunk automatically; JPG/PNG/GIF up to 6 MB). Subscript and superscript buttons are back in the editor for maths. Pasted (inline) pictures are not accepted; use the button.
+
+## v4.2
+- **Pause and reset time** (Exams > Live monitor, administrators): per student *Pause / Resume*, *+ min* (add minutes) and *reset time* (full time again, saved answers kept); plus *Pause everyone / Resume everyone* for emergencies. A paused student's screen is covered with a "Exam paused" message, their clock stops and the paused time is given back on resume. A paused student is never auto-submitted.
+- **Teacher role** (Settings > Administrators & teachers): a teacher can upload/edit/clear questions, add pictures, see Question analysis, Results (view and export only) and the Live monitor (view only). Optionally tick the subjects a teacher may work on (none ticked = all subjects). Teachers cannot see student details, exam cards, settings, subject status or backups. Every person can change their own password under their name at the top right.
+- **Clear questions** (Questions > All questions): deletes the questions of the chosen subject and level, or the whole bank (administrators). You must type DELETE; a backup is saved first; it is refused while students are writing; recorded results are kept.
+- Upgrading: copy over the old files and open any page; the database upgrades itself.

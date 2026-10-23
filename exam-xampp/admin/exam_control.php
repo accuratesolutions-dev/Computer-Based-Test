@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
+require_admin_role();
 
 // ---------- actions (post-redirect-get) ----------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

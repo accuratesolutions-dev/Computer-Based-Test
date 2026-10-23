@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
+require_admin_role();
 require_once __DIR__ . '/../includes/grading.php';
 
 $classId = (int) ($_GET['class'] ?? 0);

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
+require_admin_role();
 
 $subId = (int) ($_GET['subject'] ?? $_POST['subject_id'] ?? 0);
 $sub = db_one("SELECT s.*, c.class FROM subject s JOIN class c ON c.id = s.class_id WHERE s.sub_id = ?", 'i', $subId);

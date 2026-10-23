@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['adminLogin'])) {
         http_response_code(429);
         $errorMessage = "<div class='alert alert-danger'><strong>Too many attempts. Try again in a few minutes.</strong></div>";
     } else {
-        $admin = db_one("SELECT id, Username, Password FROM admin WHERE Username = ? LIMIT 1", 's', $username);
+        $admin = db_one("SELECT id, Username, Password, role FROM admin WHERE Username = ? LIMIT 1", 's', $username);
         $ok = false;
         if ($admin) {
             $stored = $admin['Password'];
@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['adminLogin'])) {
             session_regenerate_id(true);
             $_SESSION['admin_id'] = (int) $admin['id'];
             $_SESSION['username'] = $admin['Username'];
+            $_SESSION['role'] = $admin['role'] === 'teacher' ? 'teacher' : 'admin';
             login_cleared('admin');
             maybe_auto_backup(); // at most one automatic database backup a day
             redirect('admin/question_portal.php');

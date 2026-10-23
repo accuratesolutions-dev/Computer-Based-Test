@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
+require_admin_role();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrf_check()) { http_response_code(403); exit('Invalid or expired form token.'); }

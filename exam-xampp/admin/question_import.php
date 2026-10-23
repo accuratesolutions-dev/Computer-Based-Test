@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $level = $levelIn === 'all' ? '' : (in_array($levelIn, $validLevels, true) ? $levelIn : null);
     $file = $_FILES['csv'] ?? null;
 
-    if (!db_one("SELECT sub_id FROM subject WHERE sub_id = ? AND class_id = ?", 'ii', $subjectId, $classId)) {
+    if (!db_one("SELECT sub_id FROM subject WHERE sub_id = ? AND class_id = ?", 'ii', $subjectId, $classId) || !subject_allowed($subjectId)) {
         $errors[] = 'Please choose a class and a subject.';
     } elseif ($level === null) {
         $errors[] = 'Please choose the level (JSS 1-3 / SSS 1-3) or "All levels" for these questions.';

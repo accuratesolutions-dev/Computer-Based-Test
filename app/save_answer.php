@@ -39,7 +39,12 @@ $attempt = db_one(
 if (!$attempt) {
     out(false, 'No active exam for this question', 409);
 }
-if (time() > strtotime($attempt['time']) + ((int) $attempt['duration'] * 60) + 60) {
+if (attempt_is_paused($attempt)) {
+    http_response_code(423);
+    echo json_encode(['ok' => false, 'msg' => 'Paused by the invigilator', 'paused' => true]);
+    exit;
+}
+if (attempt_remaining($attempt) < -60) {
     out(false, 'Time is up', 409);
 }
 

@@ -4,7 +4,7 @@ require_once __DIR__ . '/../includes/question_editor.php';
 
 $id = (int) ($_GET['id'] ?? $_POST['id'] ?? 0);
 $qrow = db_one("SELECT * FROM question WHERE id = ?", 'i', $id);
-if (!$qrow) {
+if (!$qrow || !subject_allowed((int) $qrow['subject_id'])) {
     flash_set('danger', 'Question not found.');
     header('Location: questions.php');
     exit;

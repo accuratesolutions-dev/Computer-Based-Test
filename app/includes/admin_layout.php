@@ -30,6 +30,13 @@ function admin_head($title, $active = '', $extraHead = '')
             'system'    => ['system.php', 'System check & backup', 'fa-database'],
         ]],
     ];
+    if (!is_admin_role()) {   // teachers: questions, results and the live monitor only
+        $teacherKeys = ['portal', 'questions', 'import', 'images', 'analysis', 'monitor', 'results'];
+        foreach ($groups as $label => $g) {
+            $groups[$label][1] = array_intersect_key($g[1], array_flip($teacherKeys));
+            if (!$groups[$label][1]) { unset($groups[$label]); }
+        }
+    }
     ?>
 <!DOCTYPE html>
 <html>
@@ -78,7 +85,7 @@ function admin_head($title, $active = '', $extraHead = '')
                 <?php endforeach; ?>
             </ul>
             <ul class="nav navbar-nav navbar-right">
-                <li><a href="settings.php"><i class="fa fa-user"></i> <?php echo e($_SESSION['username'] ?? ''); ?></a></li>
+                <li><a href="account.php" title="My account"><i class="fa fa-user"></i> <?php echo e($_SESSION['username'] ?? ''); ?> <small class="text-muted">(<?php echo is_admin_role() ? 'admin' : 'teacher'; ?>)</small></a></li>
                 <li><a href="<?php echo e(url('includes/adminLogout.php')); ?>"><i class="fa fa-sign-out"></i> Logout</a></li>
             </ul>
         </div>
@@ -103,7 +110,7 @@ function admin_foot()
 // All subjects with their class name, for filter dropdowns.
 function admin_subject_options()
 {
-    return db_all("SELECT s.sub_id, s.sub_name, s.class_id, c.class FROM subject s JOIN class c ON c.id = s.class_id ORDER BY c.id, s.sub_name");
+    return db_all("SELECT s.sub_id, s.sub_name, s.class_id, c.class FROM subject s JOIN class c ON c.id = s.class_id WHERE " . subject_scope_sql('s.sub_id') . " ORDER BY c.id, s.sub_name");
 }
 
 // Prevent spreadsheet formula injection in CSV exports.

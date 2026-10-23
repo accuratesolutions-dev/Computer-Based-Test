@@ -180,8 +180,7 @@ function finalize_expired_attempts()
 {
     $n = 0;
     foreach (db_all("SELECT * FROM dosubject WHERE istaken = 0") as $a) {
-        $endsAt = strtotime($a['time']) + ((int) $a['duration'] * 60) + 60; // same grace as result.php
-        if (time() <= $endsAt) {
+        if (attempt_is_paused($a) || attempt_remaining($a) >= -60) { // paused clocks never run out; 60 s grace as in result.php
             continue;
         }
         $subject = db_one("SELECT * FROM subject WHERE sub_id = ?", 'i', (int) $a['dosub_id']);

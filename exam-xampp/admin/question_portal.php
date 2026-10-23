@@ -6,7 +6,7 @@ $classId   = (int) ($_GET['class'] ?? 0);
 $subjectId = (int) ($_GET['subject'] ?? 0);
 $levelSel = (string) ($_GET['level'] ?? '');
 $levelsNow = $classId ? levels_for_class($classId) : [];
-$subjectsForClass = $classId ? db_all("SELECT sub_id, sub_name FROM subject WHERE class_id = ? ORDER BY sub_name", 'i', $classId) : [];
+$subjectsForClass = $classId ? db_all("SELECT sub_id, sub_name FROM subject WHERE class_id = ? AND " . subject_scope_sql('sub_id') . " ORDER BY sub_name", 'i', $classId) : [];
 $counts = [];
 foreach (db_all("SELECT subject_id, COUNT(*) AS c FROM question GROUP BY subject_id") as $r) { $counts[(int) $r['subject_id']] = (int) $r['c']; }
 

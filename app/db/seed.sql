@@ -21,7 +21,7 @@ INSERT IGNORE INTO `subject` (`class_id`,`sub_name`) VALUES
  -- Marketing for every senior class
  (1,'Marketing'),(2,'Marketing'),(3,'Marketing');
 
-INSERT IGNORE INTO `app_meta` (`k`,`v`) VALUES ('junior_subjects_v2','1'),('marketing_v1','1'),('schema_v4','1'),('schema_v5','1');
+INSERT IGNORE INTO `app_meta` (`k`,`v`) VALUES ('junior_subjects_v2','1'),('marketing_v1','1'),('schema_v4','1'),('schema_v5','1'),('schema_v6','1');
 
 INSERT INTO `instruction` (`text`)
 SELECT * FROM (

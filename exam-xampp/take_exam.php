@@ -56,9 +56,9 @@ if (!$attempt) {
     );
 }
 
-$endsAt = strtotime($attempt['time']) + ((int) $attempt['duration'] * 60);
-$remaining = $endsAt - time();
-if ($remaining <= 0) {
+$remaining = attempt_remaining($attempt);
+$isPaused = attempt_is_paused($attempt);
+if ($remaining <= 0 && !$isPaused) {
     finalize_exam($studentId, $subject, [], false); // grades whatever was auto-saved
     back_to_subjects('Your time for this exam had elapsed. Your saved answers were submitted.');
 }
@@ -181,6 +181,11 @@ foreach ($questions as $q) { if (isset($saved[(int) $q['id']])) { $answeredAtSta
 </div>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
+<div id="pauseBox" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(20,30,60,.92);color:#fff;align-items:center;justify-content:center;text-align:center;padding:20px;">
+    <div><h2 style="color:#fff;">Exam paused</h2>
+        <p style="font-size:18px;">The invigilator has paused your exam. Your time is not running.<br>Stay seated and wait. The exam continues by itself when it is resumed.</p>
+        <p style="opacity:.8;">Your answers are saved.</p></div>
+</div>
 <script>
 (function () {
     var TOTAL = <?php echo (int) $totalQuestions; ?>;
@@ -271,8 +276,31 @@ foreach ($questions as $q) { if (isset($saved[(int) $q['id']])) { $answeredAtSta
     });
 
     /* ---------- timer: the server decides, this only displays it ---------- */
-    var endsAt = Date.now() + <?php echo (int) $remaining; ?> * 1000;
+    var endsAt = Date.now() + <?php echo (int) max(0, $remaining); ?> * 1000;
+    var paused = <?php echo $isPaused ? 'true' : 'false'; ?>, frozenLeft = <?php echo (int) max(0, $remaining); ?>;
+    var pauseBox = document.getElementById('pauseBox');
     var el = document.getElementById('countdown');
+    function setPaused(on, left) {
+        if (on) { frozenLeft = left; }
+        if (on === paused && !on) { return; }
+        paused = on;
+        pauseBox.style.display = on ? 'flex' : 'none';
+        if (!on) { endsAt = Date.now() + left * 1000; flush(); }
+    }
+    function pollStatus() {
+        if (finishing) { return; }
+        fetch('exam_status.php', { credentials: 'same-origin', cache: 'no-store' })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                if (!j.ok) { return; }
+                if (j.ended) { submitNow(); return; }
+                if (j.paused) { setPaused(true, j.left); }
+                else { if (paused) { setPaused(false, j.left); } else if (Math.abs((endsAt - Date.now()) / 1000 - j.left) > 3) { endsAt = Date.now() + j.left * 1000; } }
+            })
+            .catch(function () {});
+    }
+    setInterval(pollStatus, 5000);
+    pauseBox.style.display = paused ? 'flex' : 'none';
     function pad(n) { return (n < 10 ? '0' : '') + n; }
     function submitNow() {
         if (finishing) { return; }
@@ -280,10 +308,10 @@ foreach ($questions as $q) { if (isset($saved[(int) $q['id']])) { $answeredAtSta
         form.submit();
     }
     function tick() {
-        var left = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
+        var left = paused ? frozenLeft : Math.max(0, Math.round((endsAt - Date.now()) / 1000));
         el.textContent = pad(Math.floor(left / 3600)) + ':' + pad(Math.floor(left % 3600 / 60)) + ':' + pad(left % 60);
         if (left <= 120) { el.style.color = 'red'; }
-        if (left === 0) { clearInterval(timer); setStatus('Time is up - submitting...', 'red'); setTimeout(submitNow, 400); }
+        if (left === 0 && !paused) { clearInterval(timer); setStatus('Time is up - submitting...', 'red'); setTimeout(submitNow, 400); }
     }
     var timer = setInterval(tick, 1000);
     tick();
@@ -292,7 +320,7 @@ foreach ($questions as $q) { if (isset($saved[(int) $q['id']])) { $answeredAtSta
     function setStatus(text, color) { statusEl.textContent = text; statusEl.style.color = color || ''; }
     function hasPending() { return Object.keys(pending).length > 0; }
     function flush() {
-        if (inflight || !hasPending() || finishing) { return; }
+        if (inflight || !hasPending() || finishing || paused) { return; }
         var qid = Object.keys(pending)[0], choice = pending[qid];
         inflight = true;
         setStatus('Saving...', '');
@@ -305,6 +333,8 @@ foreach ($questions as $q) { if (isset($saved[(int) $q['id']])) { $answeredAtSta
                     if (pending[qid] === choice) { delete pending[qid]; }
                     setStatus(hasPending() ? 'Saving...' : 'All answers saved ✓', 'green');
                     flush();
+                } else if (res.status === 423) {
+                    setPaused(true, frozenLeft); // the answer stays queued and is saved after the invigilator resumes
                 } else if (res.status === 409) {
                     delete pending[qid];
                     setStatus('Time is up - submitting...', 'red');

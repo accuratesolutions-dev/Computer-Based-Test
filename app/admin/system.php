@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/admin_layout.php';
+require_admin_role();
 require_once __DIR__ . '/../includes/backup.php';
 
 // Download a saved backup (name is validated; nothing else in the folder is reachable).

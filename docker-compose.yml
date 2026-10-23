@@ -22,6 +22,8 @@ services:
         condition: service_healthy
     volumes:
       - passports:/var/www/html/onlineForm/images/Student_Images
+      - uploads:/var/www/html/uploads
+      - backups:/var/www/html/backups
 
   db:
     image: mysql:8.0
@@ -44,3 +46,5 @@ services:
 volumes:
   db_data:
   passports:
+  uploads:
+  backups:

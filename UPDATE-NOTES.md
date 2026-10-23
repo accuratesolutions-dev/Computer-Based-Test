@@ -39,3 +39,4 @@ Earlier (v3): Junior class JSS1-3 with the school subject list, Marketing for Sc
 - **Report card details** (collapsible panel on the Report cards page): school name, address, motto, session, term/exam name, next term date, class teacher and principal names, school logo (PNG/JPG up to 1 MB). Comments are written automatically from the average, or tick "leave comment boxes blank" to handwrite them.
 - When printing choose paper A4, margins None, and turn on Background graphics.
 - Upgrading: copy over the old files; nothing in the database needs changing.
+- Docker: question pictures, the school logo and server backups now live in Docker volumes (`uploads`, `backups`), so they survive rebuilds and `docker compose up --build`.

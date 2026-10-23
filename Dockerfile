@@ -12,7 +12,7 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY app/ /var/www/html/
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
-    && chown -R www-data:www-data /var/www/html/onlineForm/images/Student_Images /var/www/html/uploads
+    && chown -R www-data:www-data /var/www/html/onlineForm/images/Student_Images /var/www/html/uploads /var/www/html/backups
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD php -r 'exit(@file_get_contents("http://127.0.0.1/index.php") === false ? 1 : 0);'

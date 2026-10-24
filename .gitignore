@@ -5,3 +5,8 @@ app/onlineForm/images/Student_Images/*
 app/uploads/*
 !app/uploads/.gitkeep
 !app/uploads/.htaccess
+app/includes/local-config.php
+exam-xampp/includes/local-config.php
+windows-installer/build/
+windows-installer/redist/*.exe
+windows-installer/output/

@@ -11,6 +11,18 @@ if (!function_exists('env')) {
     }
 }
 
+// Optional per-install settings file written by the Windows installer (returns an array of KEY => value).
+// Real environment variables always win. Never served: includes/ is blocked by .htaccess and the file prints nothing.
+if (is_file(__DIR__ . '/local-config.php')) {
+    $__local = include __DIR__ . '/local-config.php';
+    if (is_array($__local)) {
+        foreach ($__local as $__k => $__v) {
+            if (getenv($__k) === false) { putenv($__k . '=' . $__v); }
+        }
+    }
+    unset($__local, $__k, $__v);
+}
+
 date_default_timezone_set(env('APP_TIMEZONE', 'Africa/Lagos'));
 
 define('DB_HOST', env('DB_HOST', 'localhost'));

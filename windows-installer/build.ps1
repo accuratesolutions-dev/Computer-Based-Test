@@ -31,6 +31,11 @@ foreach ($d in 'uploads', 'backups', 'onlineForm\images\Student_Images') {
 
 $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe", "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Host 'Inno Setup is not installed and winget is not available on this PC.' -ForegroundColor Yellow
+        Write-Host 'Download and install Inno Setup 6 from https://jrsoftware.org/isdl.php (default options), then run this script again.' -ForegroundColor Yellow
+        exit 1
+    }
     Write-Host 'Installing Inno Setup with winget...'
     winget install -e --id JRSoftware.InnoSetup --accept-package-agreements --accept-source-agreements
     $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe", "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1

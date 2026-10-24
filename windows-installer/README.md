@@ -6,7 +6,7 @@ Builds one `Akyerit-CBT-Setup-4.3.exe` that a school can double-click. It instal
 1. Download the **XAMPP Windows x64 installer** (PHP 8.2 or newer) from https://www.apachefriends.org/download.html and save it in `windows-installer\redist\`.
 2. Open PowerShell in this `windows-installer` folder and run:
    `powershell -ExecutionPolicy Bypass -File build.ps1`
-   (it installs Inno Setup through winget if needed).
+   (it installs Inno Setup through winget if available; otherwise install Inno Setup 6 from https://jrsoftware.org/isdl.php first).
 3. The installer appears in `windows-installer\output\`.
 
 ## What the school does
